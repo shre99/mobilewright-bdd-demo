@@ -1,0 +1,27 @@
+{
+  "name": "mobilewright-bdd-demo",
+  "version": "1.0.0",
+  "description": "Mobile UI automation with Mobilewright + Cucumber (BDD) + Page Object Model, against Sauce Labs My Demo App (Android)",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "setup": "npm install && npm run check",
+    "check": "npm run bdd:dry-run && npm run check:steps",
+    "bdd:dry-run": "cucumber-js --dry-run --format summary",
+    "check:steps": "node scripts/check-steps.mjs",
+    "app:download": "node scripts/download-apk.mjs",
+    "test:android": "bash scripts/run-android.sh",
+    "bdd:test": "cucumber-js",
+    "test:doctor": "mobilewright doctor --category android",
+    "devices": "mobilewright devices",
+    "inspect": "mobilewright inspect",
+    "report": "node scripts/living-doc.mjs"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^10.9.0",
+    "mobilewright": "0.0.53",
+    "multiple-cucumber-html-reporter": "^4.3.0"
+  }
+}
