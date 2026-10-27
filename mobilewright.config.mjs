@@ -4,6 +4,13 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// When a device is picked with MOBILE_DEVICE_ID, point every plain `adb` call (Driver.mjs,
+// BasePage.mjs) at the same device. Without this, adb fails with "more than one device"
+// when a phone and an emulator are both connected.
+if (process.env.MOBILE_DEVICE_ID && !process.env.ANDROID_SERIAL) {
+  process.env.ANDROID_SERIAL = process.env.MOBILE_DEVICE_ID;
+}
+
 export default defineConfig({
   platform: 'android',
   // Sauce Labs My Demo App (public demo app). APK is downloaded by `npm run setup`.

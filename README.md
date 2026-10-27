@@ -83,7 +83,7 @@ mobilewright-bdd-demo/
 ├── cucumber.js               Cucumber profiles (default + android)
 ├── scripts/
 │   ├── check-steps.mjs       offline check: every step key has a dispatcher case
-│   ├── run-android.sh        (device runs only) boots emulator, runs Cucumber
+│   ├── run-android.sh        (device runs only) finds/boots a device, runs Cucumber
 │   ├── download-apk.mjs      (device runs only) downloads the demo APK
 │   └── living-doc.mjs        builds the HTML report from Cucumber JSON
 └── test/UI-test/
@@ -206,17 +206,100 @@ case 'cart button':                                  // in the tap switch
 
 ---
 
-## Optional: run on an emulator
+## Optional: run on an emulator or a physical device
 
-Not part of the hands-on. Only if you want to see the tests drive a real app. Needs Android Studio with at least one emulator.
+Not part of the offline hands-on. Do this only if you want to watch the tests drive the real app. You need Android Studio (it installs the Android SDK, `adb` and the emulator).
+
+### A. One-time setup (both options)
+
+1. Install Android Studio from https://developer.android.com/studio and open it once so it downloads the SDK.
+2. Put `adb` and `emulator` on your PATH:
+
+   **macOS** (add to `~/.zshrc`, then run `source ~/.zshrc`):
+   ```bash
+   export ANDROID_HOME="$HOME/Library/Android/sdk"
+   export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+   ```
+   **Linux** (add to `~/.bashrc`, then run `source ~/.bashrc`):
+   ```bash
+   export ANDROID_HOME="$HOME/Android/Sdk"
+   export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+   ```
+3. Download the demo app and check your machine:
+   ```bash
+   npm run app:download
+   npm run test:doctor
+   ```
+
+**Verify:** `adb version` and `emulator -version` both print a version.
+
+### B. Run on an emulator
+
+1. Create one: Android Studio → **Device Manager** → **Create device** → pick a phone or tablet → pick a system image (API 34 or newer) → Finish.
+2. List and start it from the terminal (or press ▶ in Device Manager):
+   ```bash
+   emulator -list-avds              # e.g. Pixel_8_API_35
+   emulator -avd Pixel_8_API_35 &
+   adb devices                      # shows: emulator-5554   device
+   ```
+3. Run the tests:
+   ```bash
+   npm run test:android
+   ```
+   If no device is online, `test:android` boots the first emulator for you. To choose which one: `AVD_NAME=Pixel_8_API_35 npm run test:android`.
+
+### C. Run on a physical Android device
+
+First, on the phone or tablet:
+
+1. **Settings → About phone → tap "Build number" 7 times** to turn on Developer options.
+2. **Settings → System → Developer options** → turn on **USB debugging** (and **Wireless debugging** if you'll use Wi-Fi).
+
+**Option 1: USB cable**
+```bash
+# connect the cable, then tap "Allow" on the "Allow USB debugging?" prompt on the device
+adb devices                        # shows: R58N12ABCDE   device
+```
+If it shows `unauthorized`, unlock the device and accept the prompt. If it shows nothing, try another cable or USB port.
+
+**Option 2: Wi-Fi (Android 11+, phone and computer on the same network)**
+```bash
+# On the device: Developer options → Wireless debugging → "Pair device with pairing code".
+# It shows an IP:port and a 6-digit code.
+adb pair 192.168.1.20:37099        # use the pairing IP:port, then type the 6-digit code
+
+# Back on the Wireless debugging screen, note the IP:port under "IP address & Port".
+adb connect 192.168.1.20:41235     # this connect port is different from the pairing port
+adb devices                        # shows: 192.168.1.20:41235   device
+```
+The connect port changes when the device restarts or Wireless debugging is toggled. Run `adb connect` again with the new port.
+
+**Run the tests on that device**
+```bash
+MOBILE_DEVICE_ID=R58N12ABCDE npm run test:android          # USB: serial from adb devices
+MOBILE_DEVICE_ID=192.168.1.20:41235 npm run test:android   # Wi-Fi: IP:port from adb devices
+```
+`MOBILE_DEVICE_ID` picks the device when more than one is connected (for example a phone and an emulator). With only one device online you can leave it out.
+
+### D. After a run
 
 ```bash
-npm run app:download            # downloads the demo APK into test/UI-test/App/Android/
-npm run test:doctor             # checks Android SDK, adb and devices
-npm run test:android            # boots the first emulator if needed, runs every feature
-npm run report                  # HTML report → living-documentation/index.html
-npm run inspect                 # Mobilewright Inspector: click an element to see its id
+npm run report       # HTML report → living-documentation/index.html
+npm run inspect      # Mobilewright Inspector in the browser: click an element to see its id
 ```
+
+> **Ask Claude:** "Help me run this repo's tests on my <emulator / USB phone / Wi-Fi phone>. `adb devices` shows: <paste>. `npm run test:android` shows: <paste>."
+
+### Device troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `adb: command not found` | PATH isn't set. Redo step A.2 and open a new terminal. |
+| `adb devices` shows `unauthorized` | Unlock the device and tap **Allow** on the USB debugging prompt. |
+| `more than one device/emulator` | Set `MOBILE_DEVICE_ID=<serial>` as shown above. |
+| Wi-Fi device drops off | Re-run `adb connect <ip>:<new port>` from the Wireless debugging screen. |
+| Every locator fails, screen is black | Unlock the screen. `test:android` also runs `adb shell input keyevent 224` and `adb shell wm dismiss-keyguard`. |
+| No element found by ID | Run `npm run inspect` and compare the resource-id with `constants/testIds.mjs` (see the comment at the top of that file). |
 
 ## All commands
 
@@ -227,7 +310,10 @@ npm run inspect                 # Mobilewright Inspector: click an element to se
 | `npm run bdd:dry-run` | Cucumber dry run only |
 | `npm run check:steps` | Step-key check only |
 | `npm run app:download` | Download the demo APK (device runs) |
-| `npm run test:android` | Run features on an emulator (device runs) |
+| `npm run devices` | List connected emulators and devices |
+| `npm run test:doctor` | Check Android SDK, adb and devices |
+| `npm run test:android` | Run features on an emulator or device (`MOBILE_DEVICE_ID` to pick one) |
+| `npm run inspect` | Mobilewright Inspector (device runs) |
 | `npm run report` | Build the HTML living documentation |
 
 ## Links

@@ -15,17 +15,29 @@ fi
 ADB="$ANDROID_SDK/platform-tools/adb"
 EMULATOR_BIN="$ANDROID_SDK/emulator/emulator"
 
+# MOBILE_DEVICE_ID=<adb serial> targets one device when several are connected.
+if [ -n "${MOBILE_DEVICE_ID:-}" ]; then
+  export ANDROID_SERIAL="$MOBILE_DEVICE_ID"
+fi
+
 if [ ! -x "$ADB" ]; then
   echo "adb not found at $ADB. Install Android Studio / SDK, or set ANDROID_HOME." >&2
   exit 1
 fi
 
 is_device_online() {
-  "$ADB" devices | sed 1d | grep -w "device" >/dev/null 2>&1
+  if [ -n "${ANDROID_SERIAL:-}" ]; then
+    [ "$("$ADB" -s "$ANDROID_SERIAL" get-state 2>/dev/null)" = "device" ]
+  else
+    "$ADB" devices | sed 1d | grep -w "device" >/dev/null 2>&1
+  fi
 }
 
 if is_device_online; then
-  echo "Device already online."
+  echo "Device online: ${ANDROID_SERIAL:-first available}"
+elif [ -n "${ANDROID_SERIAL:-}" ]; then
+  echo "Device '$ANDROID_SERIAL' is not online. Check 'adb devices' (USB cable, Wi-Fi pairing, or emulator running)." >&2
+  exit 1
 else
   AVD="${AVD_NAME:-$("$EMULATOR_BIN" -list-avds | head -n 1)}"
   if [ -z "$AVD" ]; then
